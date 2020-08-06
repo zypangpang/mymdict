@@ -1,0 +1,6 @@
+*.css
+*.js
+*.mdx
+*.mdd
+*.html
+*__pycache__*
