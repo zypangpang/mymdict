@@ -3,4 +3,5 @@
 *.mdx
 *.mdd
 *.html
+*.ini
 *__pycache__*

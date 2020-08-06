@@ -22,10 +22,10 @@ class DictDaemon():
         return lookup_utils.decode_record_by_index(self.dictionaries[dict_name],index_tuple)
 
     def lookup(self,word):
-        ans=[]
+        ans={}
         for d in self.enabled_dicts:
             try:
-                ans.append(self._lookup(word,d))
+                ans[d]=self._lookup(word,d)
             except Exception as e:
                 print(e)
 
