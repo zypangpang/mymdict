@@ -19,7 +19,7 @@
 
 from struct import pack, unpack
 from io import BytesIO
-import re
+import re,time
 import sys
 
 from ripemd128 import ripemd128
@@ -95,6 +95,7 @@ class MDict(object):
         self._fname = fname
         self._encoding = encoding.upper()
         self._passcode = passcode
+        self._record_block_size=0
 
         self.header = self._read_header()
         try:
@@ -413,7 +414,7 @@ class MDict(object):
         num_entries = self._read_number(f)
         assert (num_entries == self._num_entries)
         record_block_info_size = self._read_number(f)
-        record_block_size = self._read_number(f)
+        self._record_block_size = self._read_number(f)
 
         # record block info section
         record_block_info_list = []
@@ -532,7 +533,7 @@ class MDX(MDict):
     def items(self):
         """Return a generator which in turn produce tuples in the form of (key, value)
         """
-        return self._decode_record_block()
+        return self._decode_key_record_index()
 
     def _substitute_stylesheet(self, txt):
         # substitute stylesheet definition
@@ -605,12 +606,13 @@ class MDX(MDict):
         return self._key_list[key_index][1],record
 
 
-    def _decode_record_block(self):
+
+    def _decode_key_record_index(self):
 
         f = open(self._fname, 'rb')
-        f.seek(self._record_block_offset
-               + self._number_width*4
-               + self._number_width*2*len(self._record_block_info_list))
+        record_block_data_offset=self._record_block_offset+ self._number_width*4 \
+                                 +self._number_width*2*len(self._record_block_info_list)
+        f.seek(record_block_data_offset)
 
         # actual record block data
         offset = 0
@@ -655,17 +657,13 @@ class MDX(MDict):
                 else:
                     record_end = len(record_block) + offset
                 i += 1
-                record = record_block[record_start-offset:record_end-offset]
-                # convert to utf-8
-                record = record.decode(self._encoding, errors='ignore').strip(u'\x00').encode('utf-8')
-                # substitute styles
-                if self._substyle and self._stylesheet:
-                    record = self._substitute_stylesheet(record)
 
-                yield key_text, record
+                yield key_text.decode("utf-8"),(record_block_data_offset+size_counter,compressed_size,decompressed_size,record_start-offset,record_end-offset)
+
             offset += len(record_block)
             size_counter += compressed_size
-        assert(size_counter == record_block_size)
+
+        assert(size_counter == self._record_block_size)
 
         f.close()
 
