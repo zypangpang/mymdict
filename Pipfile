@@ -4,11 +4,13 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
+python-daemon = "*"
 
 [packages]
 python-lzo = "*"
 pyqt5 = "*"
 pyqtwebengine = "*"
+fire = "*"
 
 [requires]
 python_version = "3.8"

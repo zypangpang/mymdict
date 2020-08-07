@@ -22,8 +22,8 @@ from io import BytesIO
 import re
 import sys
 
-from ripemd128 import ripemd128
-from pureSalsa20 import Salsa20
+from dict_parse.ripemd128 import ripemd128
+from dict_parse.pureSalsa20 import Salsa20
 
 # zlib compression is used for engine version >=2.0
 import zlib
@@ -95,10 +95,12 @@ class MDict(object):
         self._fname = fname
         self._encoding = encoding.upper()
         self._passcode = passcode
+        self._record_block_size=0
 
         self.header = self._read_header()
         try:
             self._key_list = self._read_keys()
+            self._record_block_info_list = self._decode_record_block_info()
             #print(self._key_list)
         except:
             print("Try Brutal Force on Encrypted Key Blocks")
@@ -404,6 +406,30 @@ class MDict(object):
         self._num_entries = len(key_list)
         return key_list
 
+    def _decode_record_block_info(self):
+        f = open(self._fname, 'rb')
+        f.seek(self._record_block_offset)
+
+        num_record_blocks = self._read_number(f)
+        num_entries = self._read_number(f)
+        assert (num_entries == self._num_entries)
+        record_block_info_size = self._read_number(f)
+        self._record_block_size = self._read_number(f)
+
+        # record block info section
+        record_block_info_list = []
+        size_counter = 0
+        for i in range(num_record_blocks):
+            compressed_size = self._read_number(f)
+            decompressed_size = self._read_number(f)
+            record_block_info_list += [(compressed_size, decompressed_size)]
+            size_counter += self._number_width * 2
+
+        f.close()
+        assert (size_counter == record_block_info_size)
+        return record_block_info_list
+
+
 
 class MDD(MDict):
     """
@@ -478,7 +504,7 @@ class MDD(MDict):
                     break
                 # record end index
                 if i < len(self._key_list)-1:
-                    record_end = self._key_list[i+1][0]
+                    recorreadmdictd_end = self._key_list[i+1][0]
                 else:
                     record_end = len(record_block) + offset
                 i += 1
@@ -489,6 +515,18 @@ class MDD(MDict):
         assert(size_counter == record_block_size)
 
         f.close()
+
+    def write_to_folder(self,datafolder):
+        if not os.path.exists(datafolder):
+            os.makedirs(datafolder)
+        for key, value in mdd.items():
+            fname = key.decode('utf-8').replace('\\', os.path.sep)
+            dfname = datafolder + fname
+            if not os.path.exists(os.path.dirname(dfname)):
+                os.makedirs(os.path.dirname(dfname))
+            df = open(dfname, 'wb')
+            df.write(value)
+            df.close()
 
 
 class MDX(MDict):
@@ -507,7 +545,7 @@ class MDX(MDict):
     def items(self):
         """Return a generator which in turn produce tuples in the form of (key, value)
         """
-        return self._decode_record_block()
+        return self._decode_key_record_index()
 
     def _substitute_stylesheet(self, txt):
         # substitute stylesheet definition
@@ -522,31 +560,17 @@ class MDX(MDict):
                 txt_styled = txt_styled + style[0] + p + style[1]
         return txt_styled
 
-    def _decode_record_block(self):
+    def _decode_key_record_index(self):
         f = open(self._fname, 'rb')
-        f.seek(self._record_block_offset)
-
-        num_record_blocks = self._read_number(f)
-        num_entries = self._read_number(f)
-        assert(num_entries == self._num_entries)
-        record_block_info_size = self._read_number(f)
-        record_block_size = self._read_number(f)
-
-        # record block info section
-        record_block_info_list = []
-        size_counter = 0
-        for i in range(num_record_blocks):
-            compressed_size = self._read_number(f)
-            decompressed_size = self._read_number(f)
-            record_block_info_list += [(compressed_size, decompressed_size)]
-            size_counter += self._number_width * 2
-        assert(size_counter == record_block_info_size)
-
+        record_block_data_offset=self._record_block_offset+ self._number_width*4 \
+                                 +self._number_width*2*len(self._record_block_info_list)
+        f.seek(record_block_data_offset)
 
         # actual record block data
         offset = 0
         i = 0
         size_counter = 0
+        record_block_info_list=self._record_block_info_list
         for compressed_size, decompressed_size in record_block_info_list:
             record_block_compressed = f.read(compressed_size)
             # 4 bytes indicates block compression type
@@ -585,17 +609,13 @@ class MDX(MDict):
                 else:
                     record_end = len(record_block) + offset
                 i += 1
-                record = record_block[record_start-offset:record_end-offset]
-                # convert to utf-8
-                record = record.decode(self._encoding, errors='ignore').strip(u'\x00').encode('utf-8')
-                # substitute styles
-                if self._substyle and self._stylesheet:
-                    record = self._substitute_stylesheet(record)
 
-                yield key_text, record
+                yield key_text.decode("utf-8"),(record_block_data_offset+size_counter,compressed_size,decompressed_size,record_start-offset,record_end-offset)
+
             offset += len(record_block)
             size_counter += compressed_size
-        assert(size_counter == record_block_size)
+
+        assert(size_counter == self._record_block_size)
 
         f.close()
 

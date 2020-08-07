@@ -1,13 +1,11 @@
-import sys
-
 from PyQt5.QtCore import QUrl, QDir
-from PyQt5.QtGui import QFontDatabase,QFont
+from PyQt5.QtGui import QFontDatabase
 from PyQt5.QtWebEngineWidgets import QWebEngineSettings, QWebEnginePage
 from PyQt5.QtWidgets import QApplication
 from PyQt5 import QtWebEngineWidgets
 from PyQt5 import QtCore
 
-from mymdict import MDD,MDX
+from dict_parse.mymdict import MDX
 
 print("Loading dictionaries from file ...")
 mdx = MDX("/mnt/document/Dictionary/L6mp3.mdx")

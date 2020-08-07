@@ -3,7 +3,12 @@ import lzo,zlib
 
 def decode_record_by_index(filename, index_tuple, encoding=None):
     block_offset, compressed_size, decompressed_size, record_begin, record_end = index_tuple
-    f = open(filename, 'rb')
+
+    try:
+        f = open(filename, 'rb')
+    except Exception as e:
+        return "Dict file open failed. Check the path"
+
     f.seek(block_offset)
 
     record_block_compressed = f.read(compressed_size)

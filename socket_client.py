@@ -7,7 +7,7 @@ def test_client():
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
         # Connect to server and send data
         sock.connect("/tmp/mmdict_socket")
-        data="write"
+        data="Lookup,write"
         sock.sendall(data.encode("utf-8"))
 
         # Receive data from the server and shut down
@@ -17,8 +17,10 @@ def test_client():
             if not msg:
                 break
             msg_list.append(msg)
-        definition_obj=json.loads(b"".join(msg_list).decode("utf-8"))
-        print(definition_obj['LongmanDict.mdx'])
+        return_str=b"".join(msg_list).decode("utf-8")
+        print(return_str)
+        #definition_obj=json.loads(b"".join(msg_list).decode("utf-8"))
+        #print(definition_obj['LongmanDict.mdx'])
 
 if __name__ == '__main__':
     test_client()

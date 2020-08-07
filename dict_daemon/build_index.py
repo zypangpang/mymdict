@@ -1,5 +1,5 @@
-from mymdict import MDX
-import json,zlib,os
+from dict_parse.mymdict import MDX
+import json,zlib,os,logging
 
 class IndexManipulator():
 
@@ -7,21 +7,24 @@ class IndexManipulator():
     index_obj=None
 
     @classmethod
-    def build_indexes(cls,dict_paths):
+    def build_indexes(cls,dict_paths,rebuild=False):
         for name,path in dict_paths.items():
-            cls._build_index(name,path)
+            cls._build_index(name,path,rebuild)
 
     @classmethod
     def get_index_file_name(cls,dict_name):
         return os.path.join(cls.index_path_prefix,dict_name+".index")
 
     @classmethod
-    def _build_index(cls,dict_name,dict_path:dict):
+    def _build_index(cls,dict_name,dict_path,rebuild):
         path=cls.get_index_file_name(dict_name)
-        if os.path.exists(path):
+        if not rebuild and os.path.exists(path):
+            return
+        if not os.path.exists(dict_path):
+            logging.error(f"{dict_path} not exist")
             return
 
-        print(f"building index for new dictionary {dict_name} ...")
+        logging.info(f"building index for new dictionary {dict_name} ...")
 
         mdx = MDX(dict_path)
         index_obj = {key: index for key, index in mdx.items()}
