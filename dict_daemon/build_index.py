@@ -13,6 +13,8 @@ class IndexManipulator():
 
     @classmethod
     def get_index_file_name(cls,dict_name):
+        if not cls.index_path_prefix:
+            raise Exception("Internal error: index_path_prefix is not set")
         return os.path.join(cls.index_path_prefix,dict_name+".index")
 
     @classmethod

@@ -33,6 +33,10 @@ class DictDaemon():
 
     def _build_indexes(self,rebuild=False,dict_names=None):
         IndexManipulator.index_path_prefix = self.index_prefix
+        if not os.path.exists(self.index_prefix):
+            logging.info("Index folder not exists. Creating...")
+            os.makedirs(self.index_prefix)
+
         if dict_names:
             dicts={key: self.dictionaries[key] for key in dict_names}
         else:
@@ -44,20 +48,31 @@ class DictDaemon():
         self._load_indexes()
 
     def _lookup(self,word,dict_name):
+        if word not in self.index_obj[dict_name]:
+            raise Exception(f"No '{word}' entry in {dict_name}")
         index_tuple=self.index_obj[dict_name][word]
         return lookup_utils.decode_record_by_index(self.dictionaries[dict_name], index_tuple)
 
-    def lookup(self,word):
+    def lookup(self,word,dicts=None):
         ans={}
-        for d in self.enabled_dicts:
+        if not dicts:
+            dicts=self.enabled_dicts
+
+        for d in dicts:
             try:
                 ans[d]=self._lookup(word,d)
             except Exception as e:
-                print(e)
-
+                logging.error(f"Lookup '{word}' in '{d}' failed, error = {e}")
         return ans
+
     def list_all_words(self,dict_name):
+        if dict_name not in self.index_obj:
+            raise Exception(f"Unknown dict: {dict_name}")
         return "\n".join(self.index_obj[dict_name].keys())
+
+    def list_dictionaries(self,enabled=True):
+        return self.enabled_dicts if enabled else self.dictionaries.keys()
+
 
 
 if __name__ == '__main__':

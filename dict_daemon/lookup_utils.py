@@ -1,7 +1,8 @@
 from struct import pack
-import lzo,zlib
+import lzo,zlib,logging
+from constants import ENCODINGS
 
-def decode_record_by_index(filename, index_tuple, encoding=None):
+def decode_record_by_index(filename, index_tuple):
     block_offset, compressed_size, decompressed_size, record_begin, record_end = index_tuple
 
     try:
@@ -38,9 +39,17 @@ def decode_record_by_index(filename, index_tuple, encoding=None):
     record = record_block[record_begin:record_end]
 
     # convert to utf-8
-    if encoding:
-        record = record.decode(encoding, errors='ignore').strip(u'\x00')
-    else:
-        record = record.strip(b'\x00').decode("utf-8")
+    encodings=ENCODINGS
+    succuss=False
+    for encoding in encodings:
+        try:
+            record = record.decode(encoding).strip(u'\x00')
+            succuss=True
+            break
+        except Exception:
+            pass
+
+    if not succuss:
+        record = record.decode('utf-8','ignore').strip(u'\x00')
 
     return record

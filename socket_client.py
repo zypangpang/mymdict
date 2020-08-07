@@ -7,7 +7,7 @@ def test_client():
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
         # Connect to server and send data
         sock.connect("/tmp/mmdict_socket")
-        data="Lookup,write"
+        data="ListDicts:"
         sock.sendall(data.encode("utf-8"))
 
         # Receive data from the server and shut down
