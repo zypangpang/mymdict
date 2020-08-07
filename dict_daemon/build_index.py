@@ -35,7 +35,6 @@ class IndexManipulator():
         with open(path, "wb") as f:
             f.write(compressed_bytes)
 
-        print(f"building index done")
 
     @classmethod
     def _load_index(cls,dict_name):

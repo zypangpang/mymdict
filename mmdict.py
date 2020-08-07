@@ -56,9 +56,10 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
 class Main():
     """
-    mmDict
+    mmDict: A simple mdict lookup daemon
     """
-    config_file=None
+    __config_file=None
+
     @classmethod
     def __run_server(cls):
         global server
@@ -69,7 +70,7 @@ class Main():
                       f"then try to run again.")
                 exit(0)
 
-            MyTCPHandler.dict_daemon=DictDaemon(cls.config_file)
+            MyTCPHandler.dict_daemon=DictDaemon(cls.__config_file)
 
             # Register signal handler for server cleaning
             signal.signal(signal.SIGINT, signal_handler)
@@ -80,7 +81,7 @@ class Main():
             server.serve_forever()
 
         else:
-            MyTCPHandler.dict_daemon=DictDaemon(cls.config_file)
+            MyTCPHandler.dict_daemon=DictDaemon(cls.__config_file)
             logging.info("running with TCP socket")
             try:
                 server=socketserver.TCPServer((constants.HOST,constants.PORT), MyTCPHandler)
@@ -91,15 +92,25 @@ class Main():
 
     @classmethod
     def run(cls,d=False,config_file=None):
-        cls.config_file=config_file
+        """
+        run mmDict server
+        :param d: run as daemon process
+        :param config_file: Optional. custom config file path.
+        """
+        cls.__config_file=config_file
         if d:
             logging.info("Run mmDcit in background")
             with daemon.DaemonContext():
                 Main.__run_server()
         else:
             Main.__run_server()
+
     @classmethod
     def rebuild_index(cls,dicts=None):
+        '''
+        Rebuild dictionary indexes
+        :param dicts: Optional. dicts for rebuilding index
+        '''
         dicts=dicts.split(",")
         logging.info(f"Rebuilding index for {dicts}")
         DictDaemon(load_index=False).rebuild_index(dicts)
@@ -108,6 +119,10 @@ class Main():
 
     @classmethod
     def init(cls,dict_folder=None):
+        '''
+        Init configs. You need to run this command the first time you use mmDict.
+        :param dict_folder: Optional. If given, import dictionaries in dict_folder at the same time.
+        '''
         if constants.DEFAULT_CONFIG_PATH.exists():
             logging.info(f"Config file {constants.DEFAULT_CONFIG_PATH} already exists")
             logging.info("Exit.")
@@ -123,7 +138,11 @@ class Main():
 
 
     @classmethod
-    def import_dict(cls,dict_folder,keep_old=False,config_path=None):
+    def import_dict(cls,dict_folder,config_path=None):
+        '''
+        Import dictionaries from dict_folder. This will overwrite original settings in mmDict config file.
+        :param config_path: Optional. update settings in custom config_path
+        '''
         if not config_path:
             config_path=constants.DEFAULT_CONFIG_PATH
         configs=DictConfigs(config_path)
@@ -134,6 +153,11 @@ class Main():
 
     @classmethod
     def add_dict(cls,mdx_path,config_path=None):
+        '''
+        Add dict to config file
+        :param mdx_path: dictionary mdx file path
+        :param config_path: Optional. update settings in custom config_path
+        '''
         if not config_path:
             config_path=constants.DEFAULT_CONFIG_PATH
         configs=DictConfigs(config_path)
@@ -142,6 +166,10 @@ class Main():
 
     @classmethod
     def list_dicts(cls,enabled=True):
+        """
+        List dictionaries
+        :param enabled: Only list enabled dicts or all dicts. Default True
+        """
         print('\n'.join(DictDaemon(constants.DEFAULT_CONFIG_PATH,False).list_dictionaries(enabled)))
 
 

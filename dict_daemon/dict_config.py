@@ -62,10 +62,10 @@ class DictConfigs():
 
     def get_enabled_dicts(self):
         try:
-            dicts=self.get_daemon_value("enabled dictionaries").split(",")
+            dicts=self.get_daemon_value("enabled dictionaries")
         except Exception as e:
             return []
-        return [x.strip() for x in dicts]
+        return [x.strip() for x in dicts.split(',')] if dicts else []
 
 
 
