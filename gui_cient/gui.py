@@ -7,7 +7,7 @@ from PyQt5.QtWebEngineCore import QWebEngineUrlRequestInterceptor, QWebEngineUrl
 from PyQt5.QtWebEngineWidgets import QWebEngineSettings, QWebEnginePage, QWebEngineProfile
 from PyQt5 import QtWebEngineWidgets, QtCore
 from .socket_client import SocketClient
-from .gui_utils import set_default_font,join_dict_results
+from .gui_utils import set_default_font,join_dict_results,pretty_dict_result
 
 class MyUrlRequestInterceptor(QWebEngineUrlRequestInterceptor):
     def interceptRequest(self, info: QWebEngineUrlRequestInfo) -> None:
@@ -15,7 +15,6 @@ class MyUrlRequestInterceptor(QWebEngineUrlRequestInterceptor):
         print(info.requestUrl())
 
 class EntrySchemeHandler(QWebEngineUrlSchemeHandler):
-
     def requestStarted(self, request):
         url = request.requestUrl()
         _,item = url.toString().split(":")
@@ -23,7 +22,7 @@ class EntrySchemeHandler(QWebEngineUrlSchemeHandler):
         result_obj: dict = SocketClient.lookup(item)
         raw_html=join_dict_results(result_obj).encode("utf-8")
         buf = QtCore.QBuffer(request)
-        request.destroyed.connect(buf.deleteLater)
+        #request.destroyed.connect(buf.deleteLater)
         buf.open(QtCore.QIODevice.WriteOnly)
         buf.write(raw_html)
         buf.seek(0)
@@ -33,22 +32,26 @@ class EntrySchemeHandler(QWebEngineUrlSchemeHandler):
 class MyWebPage(QWebEnginePage):
     def acceptNavigationRequest(self, url: QUrl, type: QWebEnginePage.NavigationType, isMainFrame: bool, **kwargs):
         if type == QWebEnginePage.NavigationTypeLinkClicked:
-            print(url)
-            '''
-            try:
-                scheme,item = url.toString().split("://")
-            except Exception as e:
-                return False
-            result_obj:dict=SocketClient.lookup(item)
+            _, item = url.toString().split(":")
+            item = item.strip("/ ")
+            dict_name=MainWindow.dictionaries[MainWindow.dict_index-1][0]
+            result_obj: dict = SocketClient.lookup(item,[dict_name])
+            raw_html = pretty_dict_result(dict_name,result_obj[dict_name])
             #print(self.url())
-            self.setHtml("<br>".join(result_obj.values()),self.url())
-            return True
-            '''
+            self.setHtml(raw_html,self.url())
+            MainWindow.history.append(item)
+            return False
+
         return True
 
 ENTRY_SCHEME=b"entry"
 
 class MainWindow(Widgets.QWidget):
+    dict_index = 0
+    result_obj = {}
+    dictionaries=[]
+    history=[]
+
     def __init__(self):
         super().__init__()
 
@@ -64,6 +67,7 @@ class MainWindow(Widgets.QWidget):
         self.search_button=Widgets.QPushButton('&Search')
         self.status_bar=Widgets.QStatusBar()
         self.back_btn=Widgets.QPushButton('Back')
+        self.next_btn=Widgets.QPushButton("Next")
 
         self.init_webview()
 
@@ -76,7 +80,7 @@ class MainWindow(Widgets.QWidget):
 
     def init_dictionary(self):
         try:
-            self.dictionaries=SocketClient.list_dicts()
+            MainWindow.dictionaries=SocketClient.list_dicts()
         except Exception as e:
             logging.error(e)
             logging.error("It seems the mmdict daemon is not running. Please first run the daemon.")
@@ -88,6 +92,7 @@ class MainWindow(Widgets.QWidget):
         Hlayout.addWidget(self.line_edit)
         Hlayout.addWidget(self.search_button)
         Hlayout.addWidget(self.back_btn)
+        Hlayout.addWidget(self.next_btn)
         layout.addLayout(Hlayout)
         layout.addWidget(self.view)
         self.status_bar.setFixedHeight(20)
@@ -140,11 +145,17 @@ top:50px;
     def connect_slot(self):
         self.search_button.clicked.connect(self.lookup)
         self.page.linkHovered.connect(self.showMessage)
-        self.back_btn.clicked.connect(self.view.back)
+        self.back_btn.clicked.connect(self.history_back)
+        self.next_btn.clicked.connect(self.show_next_dict)
         Widgets.QShortcut(QKeySequence(Qt.Key_Return),self.line_edit).activated.connect(self.lookup)
         Widgets.QShortcut(QKeySequence.ZoomIn,self.view).activated.connect(self.zoomIn)
         Widgets.QShortcut(QKeySequence.ZoomOut,self.view).activated.connect(self.zoomOut)
 
+
+    def history_back(self):
+        if len(MainWindow.history) >=2:
+            self.lookup(MainWindow.history[-2])
+            MainWindow.history.pop()
 
     def zoomIn(self):
         self.zoom_factor+=.1
@@ -154,13 +165,29 @@ top:50px;
         self.zoom_factor-=.1
         self.page.setZoomFactor(self.zoom_factor)
 
-    def lookup(self):
-        word=self.line_edit.text().strip()
-        result_obj=SocketClient.lookup(word)
+    def show_next_dict(self):
+        name=MainWindow.dictionaries[MainWindow.dict_index][0]
+        if name not in self.result_obj:
+            MainWindow.dict_index = (MainWindow.dict_index + 1) % len(MainWindow.dictionaries)
+            self.show_next_dict()
+            return
+
+        data_folder=MainWindow.dictionaries[MainWindow.dict_index][2]
+        html=pretty_dict_result(name,self.result_obj[name])
+        print(data_folder)
+        self.page.setHtml(html, QUrl.fromLocalFile(data_folder+"/"))
+        MainWindow.dict_index = (MainWindow.dict_index + 1) % len(MainWindow.dictionaries)
+
+    def lookup(self,word=None):
+        if not word:
+            word=self.line_edit.text().strip()
+        self.result_obj=SocketClient.lookup(word)
         #baseUrl = QUrl.fromLocalFile("/index.html")
         #print(baseUrl)
-        html=join_dict_results(result_obj)
-        self.page.setHtml(html)
+        #html=join_dict_results(result_obj)
+        MainWindow.dict_index=0
+        MainWindow.history=[word]
+        self.show_next_dict()
 
     def showMessage(self,msg):
         self.status_bar.showMessage(str(msg),4000)

@@ -58,7 +58,15 @@ class DictConfigs():
     def get_dictionary_paths(self):
         dicts = self.get_value("dictionary daemon", "dictionaries").split(",")
         dicts=[x.strip() for x in dicts]
-        return {Path(path).stem: path for path in dicts}
+        index_folder=Path(self.get_daemon_value("index folder"))
+        ans={}
+        for path in dicts:
+            path=Path(path)
+            name=path.stem
+            data_folder=str(index_folder.joinpath(name))
+            ans[name]=[str(path),data_folder]
+        return ans
+
 
     def get_enabled_dicts(self):
         try:

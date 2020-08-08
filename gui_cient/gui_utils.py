@@ -42,6 +42,14 @@ def loadCSS(view, css, name):
     """ % (name, css)
 
     loadJS(view,SCRIPT,name)
+def pretty_dict_result(name,value):
+    header = '<meta charset="utf-8"/>\n'
+    html=header+\
+         f'<h4 style="background-color:LightGray; padding-top: 5px; padding-bottom: 5px;'\
+         f'padding-left: 5px; padding-right:5px">{name}</h4>' +\
+         value
+    return html
+
 
 def join_dict_results(result_obj):
     header='<meta charset="utf-8"/>\n'

@@ -52,7 +52,7 @@ class DictDaemon():
         if word not in self.index_obj[dict_name]:
             raise Exception(f"No '{word}' entry in {dict_name}")
         index_tuple=self.index_obj[dict_name][word]
-        return lookup_utils.decode_record_by_index(self.dictionaries[dict_name], index_tuple)
+        return lookup_utils.decode_record_by_index(self.dictionaries[dict_name][0], index_tuple)
 
     def lookup(self,word,dicts=None):
         ans={}
@@ -73,9 +73,9 @@ class DictDaemon():
 
     def list_dictionaries(self,enabled=True):
         if enabled:
-            return {name:str(Path(self.dictionaries[name]).parent) for name in self.enabled_dicts}
+            return [[name]+self.dictionaries[name] for name in self.enabled_dicts]
         else:
-            return self.dictionaries
+            return [[name]+self.dictionaries[name] for name in self.dictionaries.keys()]
 
 
 if __name__ == '__main__':

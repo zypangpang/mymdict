@@ -111,7 +111,11 @@ class Main():
         dict_folder=Path(dict_folder)
         dicts=[str(x.absolute()) for x in dict_folder.iterdir() if x.is_file() and x.suffix == '.mdx']
         names=configs.set_dicts(dicts)
+        index_foler=configs.get_daemon_value("index folder")
+        for dict in names:
+            Path(index_foler).joinpath(dict).mkdir(mode=0o0755,exist_ok=True)
         logging.info(f"Imported {len(names)} dictionaries: {names}")
+        logging.info(f"If the dictionary has css or js related, you need to copy them into {index_foler}/<dict_name> manually")
 
     @classmethod
     def add_dict(cls,mdx_path,config_path=None):
