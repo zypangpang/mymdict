@@ -11,6 +11,8 @@ python-lzo = "*"
 pyqt5 = "*"
 pyqtwebengine = "*"
 fire = "*"
+beautifulsoup4 = "*"
+lxml = "*"
 
 [requires]
 python_version = "3.8"

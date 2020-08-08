@@ -1,5 +1,6 @@
 import socketserver,json,signal,sys,os
 from dict_daemon.dict_daemon import DictDaemon,DictConfigs
+from dict_daemon.handler import MyTCPHandler
 import daemon,fire,constants
 import log_config,logging,configparser
 from pathlib import Path
@@ -12,45 +13,6 @@ def signal_handler(sig, frame):
     except Exception as e:
         logging.error(e)
     sys.exit(0)
-
-class MyTCPHandler(socketserver.BaseRequestHandler):
-    """
-    The request handler class for our server.
-
-    It is instantiated once per connection to the server, and must
-    override the handle() method to implement communication to the
-    client.
-    """
-
-    dict_daemon=None
-
-    def handle(self):
-        self.data = self.request.recv(8192).strip()
-        command,extra=self.data.decode("utf-8").split(":")
-        try:
-            return_str=getattr(self,command)(extra)
-        except AttributeError:
-            return_str=f'Unknown command {command}'.encode("utf-8")
-        except Exception as e:
-            return_str=str(e)
-        self.request.sendall(return_str.encode("utf-8"))
-
-    def ListWord(self,dict_name):
-        logging.info(f"List words of {dict_name} dictionary")
-        return self.dict_daemon.list_all_words(dict_name)
-
-    def Lookup(self,extra):
-        param_list=extra.split(",")
-        word=param_list[0]
-        dicts=param_list[1:]
-        logging.info(f"Lookup word {word} in {dicts if dicts else 'enabled dicts'}")
-        definition_list = self.dict_daemon.lookup(word,dicts)
-        return json.dumps(definition_list)
-
-    def ListDicts(self,extra):
-        logging.info("List dictionaries")
-        enabled=extra if extra else 1
-        return '\n'.join(self.dict_daemon.list_dictionaries(enabled))
 
 
 

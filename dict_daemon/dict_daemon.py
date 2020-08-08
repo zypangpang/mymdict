@@ -2,6 +2,7 @@ import constants,logging,os
 from dict_daemon.dict_config import DictConfigs
 from dict_daemon.build_index import IndexManipulator
 from dict_daemon import lookup_utils
+from pathlib import Path
 
 
 class DictDaemon():
@@ -68,11 +69,13 @@ class DictDaemon():
     def list_all_words(self,dict_name):
         if dict_name not in self.index_obj:
             raise Exception(f"Unknown dict: {dict_name}")
-        return "\n".join(self.index_obj[dict_name].keys())
+        return self.index_obj[dict_name].keys()
 
     def list_dictionaries(self,enabled=True):
-        return self.enabled_dicts if enabled else self.dictionaries.keys()
-
+        if enabled:
+            return {name:str(Path(self.dictionaries[name]).parent) for name in self.enabled_dicts}
+        else:
+            return self.dictionaries
 
 
 if __name__ == '__main__':
