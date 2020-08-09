@@ -1,28 +1,37 @@
-import socket,json
+from gui_client.socket_client import SocketClient
+import fire
+from constants import FRONT_END
+SocketClient.front_end=FRONT_END.CONSOLE
 
-def test_client():
-    HOST, PORT = "localhost", 9999
+class Main():
+    __dicts = SocketClient.list_dicts()
+    __dict_names = [dict[0] for dict in __dicts]
 
-    # Create a socket (SOCK_STREAM means a TCP socket)
-    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
-        # Connect to server and send data
-        sock.connect("/tmp/mmdict_socket")
-        data="Lookup:write"
-        sock.sendall(data.encode("utf-8"))
+    @classmethod
+    def list_dicts(cls):
+        output=[f"{i}: "+dict for i,dict in enumerate(cls.__dict_names)]
+        print("\n".join(output))
 
-        # Receive data from the server and shut down
-        msg_list=[]
-        while True:
-            msg=sock.recv(8192)
-            if not msg:
-                break
-            msg_list.append(msg)
-        return_str=b"".join(msg_list).decode("utf-8")
-        print(return_str)
-        #definition_obj=json.loads(b"".join(msg_list).decode("utf-8"))
-        #print(definition_obj['LongmanDict.mdx'])
+    @classmethod
+    def list_words(cls,dict_index=0):
+        name=cls.__dict_names[dict_index]
+        word_list=SocketClient.list_words(name)
+        print("\n".join(word_list))
+
+    @classmethod
+    def lookup(cls,word,raw=False,dicts=None):
+        if dicts:
+            dicts=[dicts] if not isinstance(dicts,list) else dicts
+            dicts=[cls.__dict_names[i] for i in dicts]
+        result_obj=SocketClient.lookup(word,dicts,raw)
+        for dict, value in result_obj.items():
+            print(f"\033[1m<{dict}>\033[0m")
+            print(value)
+
+
 
 if __name__ == '__main__':
-    test_client()
+    fire.Fire(Main)
+
 
 

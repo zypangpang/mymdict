@@ -1,10 +1,8 @@
 import socket,json,constants
-from enum import Enum
 from bs4 import BeautifulSoup
+from constants import FRONT_END
 
-class FRONT_END(Enum):
-    QTWEBENGINE=1
-    CONSOLE=2
+
 class SocketClient():
     front_end=FRONT_END.QTWEBENGINE
     @classmethod
@@ -33,15 +31,20 @@ class SocketClient():
 
     @classmethod
     def __tweak_for_console(cls, result_obj):
+        for key,val in result_obj.items():
+            soup=BeautifulSoup(val,"lxml")
+            result_obj[key]=soup.text
         return result_obj
 
     @classmethod
-    def lookup(cls,word,dicts=None):
+    def lookup(cls,word,dicts=None,raw=False):
         data = f"Lookup:{word}"
         if dicts:
             data=data+","+','.join(dicts)
         recv_data=cls.__request(data)
         r_obj=json.loads(recv_data)
+        if raw:
+            return r_obj
         if cls.front_end==FRONT_END.QTWEBENGINE:
             return cls.__tweak_for_qt_webengine(r_obj)
         elif cls.front_end==FRONT_END.CONSOLE:

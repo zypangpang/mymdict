@@ -4,8 +4,8 @@ from PyQt5.QtWebEngineWidgets import QWebEngineSettings, QWebEnginePage
 from PyQt5.QtWidgets import QApplication
 from PyQt5 import QtWebEngineWidgets
 from PyQt5 import QtCore
-from gui_cient.socket_client import SocketClient
-from gui_cient.gui import MainWindow
+from gui_client.socket_client import SocketClient
+from gui_client.gui import MainWindow
 
 #from signal import signal, SIGPIPE,  SIG_IGN
 #signal(SIGPIPE, SIG_IGN)
