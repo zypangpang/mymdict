@@ -1,4 +1,5 @@
 import  logging
+from fuzzywuzzy import process
 import PyQt5.QtWidgets as Widgets
 from PyQt5.QtCore import QUrl, QTextStream, QByteArray, QIODevice,Qt
 from PyQt5.QtGui import QKeySequence
@@ -7,11 +8,11 @@ from PyQt5.QtWebEngineCore import QWebEngineUrlRequestInterceptor, QWebEngineUrl
 from PyQt5.QtWebEngineWidgets import QWebEngineSettings, QWebEnginePage, QWebEngineProfile
 from PyQt5 import QtWebEngineWidgets, QtCore
 from .socket_client import SocketClient
-from .gui_utils import set_default_font,join_dict_results,pretty_dict_result
+from .gui_utils import set_default_font,join_dict_results,pretty_dict_result,get_data_folder_url
 
+'''
 class MyUrlRequestInterceptor(QWebEngineUrlRequestInterceptor):
     def interceptRequest(self, info: QWebEngineUrlRequestInfo) -> None:
-        print("aaa")
         print(info.requestUrl())
 
 class EntrySchemeHandler(QWebEngineUrlSchemeHandler):
@@ -28,18 +29,91 @@ class EntrySchemeHandler(QWebEngineUrlSchemeHandler):
         buf.seek(0)
         buf.close()
         request.reply(b"text/html", buf)
+'''
+class CurrentState():
+    word=None
+    dictionaries={}
+    dict_names=[]
+    cur_dict_name=None
+    history=[]
+    result_obj={}
+    all_words=None
+
+    @classmethod
+    def get_all_words(cls):
+        if not cls.all_words:
+            cls.all_words=SocketClient.list_words(cls.cur_dict_name)
+        return cls.all_words
+
+    @classmethod
+    def set_dict_infos(cls,dicts):
+        for dict in dicts:
+            cls.dictionaries[dict[0]]=dict[1:]
+            cls.dict_names.append(dict[0])
+
+        cls.cur_dict_name=cls.dict_names[0]
+
+    @classmethod
+    def reset(cls,word,result_obj):
+        cls.word=word
+        cls.result_obj=result_obj
+        cls.history=[]
+
+    @classmethod
+    def reset_history(cls):
+        cls.history=[]
+
+    @classmethod
+    def get_avl_dicts(cls):
+        ans=[]
+        for name in cls.dict_names:
+            if name in cls.result_obj:
+                ans.append(name)
+        return ans
+
+    @classmethod
+    def add_history(cls,entry):
+        cls.history.append(entry)
+
+    @classmethod
+    def get_prev_entry(cls):
+        if len(cls.history)>1:
+            cls.history.pop()
+            return cls.history[-1]
+        return None
+
+
+    @classmethod
+    def get_definition(cls,dict_name=None):
+        if dict_name:
+            cls.cur_dict_name=dict_name
+            cls.all_words=None
+
+        dict_name,data_folder=cls.get_cur_dict_info()
+        return dict_name,data_folder,cls.result_obj.get(dict_name,"No entry found")
+
+
+    @classmethod
+    def set_cur_dict(cls,name):
+        cls.cur_dict_name=name
+
+    @classmethod
+    def get_cur_dict_info(cls):
+        return cls.cur_dict_name, cls.dictionaries[cls.cur_dict_name][1]
+
+
 
 class MyWebPage(QWebEnginePage):
     def acceptNavigationRequest(self, url: QUrl, type: QWebEnginePage.NavigationType, isMainFrame: bool, **kwargs):
         if type == QWebEnginePage.NavigationTypeLinkClicked:
             _, item = url.toString().split(":")
             item = item.strip("/ ")
-            dict_name=MainWindow.dictionaries[MainWindow.dict_index-1][0]
+            dict_name,data_folder=CurrentState.get_cur_dict_info()
             result_obj: dict = SocketClient.lookup(item,[dict_name])
             raw_html = pretty_dict_result(dict_name,result_obj[dict_name])
             #print(self.url())
             self.setHtml(raw_html,self.url())
-            MainWindow.history.append(item)
+            CurrentState.add_history(item)
             return False
 
         return True
@@ -47,10 +121,6 @@ class MyWebPage(QWebEnginePage):
 ENTRY_SCHEME=b"entry"
 
 class MainWindow(Widgets.QWidget):
-    dict_index = 0
-    result_obj = {}
-    dictionaries=[]
-    history=[]
 
     def __init__(self):
         super().__init__()
@@ -58,16 +128,17 @@ class MainWindow(Widgets.QWidget):
         self.zoom_factor=1
         self.init_dictionary()
 
-        #self.app=Widgets.QApplication([])
-        #self.window = Widgets.QWidget()
+        #QWebEngineUrlScheme.registerScheme(QWebEngineUrlScheme(ENTRY_SCHEME))
 
-        QWebEngineUrlScheme.registerScheme(QWebEngineUrlScheme(ENTRY_SCHEME))
-
-        self.line_edit=Widgets.QLineEdit("Type word here")
+        self.line_edit=Widgets.QLineEdit()
         self.search_button=Widgets.QPushButton('&Search')
         self.status_bar=Widgets.QStatusBar()
         self.back_btn=Widgets.QPushButton('Back')
-        self.next_btn=Widgets.QPushButton("Next")
+        #self.next_btn=Widgets.QPushButton("Next")
+        self.dict_list_widget= Widgets.QListWidget()
+        self.index_line_edit=Widgets.QLineEdit()
+        self.index_search_btn=Widgets.QPushButton("Sch")
+        self.index_search_items=Widgets.QListWidget()
 
         self.init_webview()
 
@@ -80,7 +151,7 @@ class MainWindow(Widgets.QWidget):
 
     def init_dictionary(self):
         try:
-            MainWindow.dictionaries=SocketClient.list_dicts()
+            CurrentState.set_dict_infos(SocketClient.list_dicts())
         except Exception as e:
             logging.error(e)
             logging.error("It seems the mmdict daemon is not running. Please first run the daemon.")
@@ -88,17 +159,34 @@ class MainWindow(Widgets.QWidget):
 
     def init_layout(self):
         layout = Widgets.QVBoxLayout()
-        Hlayout = Widgets.QHBoxLayout()
-        Hlayout.addWidget(self.line_edit)
-        Hlayout.addWidget(self.search_button)
-        Hlayout.addWidget(self.back_btn)
-        Hlayout.addWidget(self.next_btn)
-        layout.addLayout(Hlayout)
-        layout.addWidget(self.view)
+        first_row_layout = Widgets.QHBoxLayout()
+        first_row_layout.addWidget(self.line_edit)
+        first_row_layout.addWidget(self.search_button)
+        first_row_layout.addWidget(self.back_btn)
+        #first_row_layout.addWidget(self.next_btn)
+        layout.addLayout(first_row_layout)
+
+        second_row_layout = Widgets.QHBoxLayout()
+        second_row_layout.addWidget(self.view)
+
+        second_row_second_col=Widgets.QVBoxLayout()
+        second_row_second_col.addWidget(self.dict_list_widget)
+        sr_sc_sr=Widgets.QHBoxLayout()
+        sr_sc_sr.addWidget(self.index_line_edit)
+        sr_sc_sr.addWidget(self.index_search_btn)
+        second_row_second_col.addLayout(sr_sc_sr)
+        second_row_second_col.addWidget(self.index_search_items)
+
+        second_row_layout.addLayout(second_row_second_col)
+
+        layout.addLayout(second_row_layout)
+
         self.status_bar.setFixedHeight(20)
         layout.addWidget(self.status_bar)
+
         #layout.setSpacing(0)
         layout.setContentsMargins(3,3,3,3)
+
         self.setLayout(layout)
         self.setMinimumHeight(700)
         self.setMinimumWidth(700)
@@ -106,15 +194,14 @@ class MainWindow(Widgets.QWidget):
     def init_webview(self):
         set_default_font("Noto Sans CJK SC",16)
 
-
-        self.profile=QWebEngineProfile.defaultProfile()
+        #self.profile=QWebEngineProfile.defaultProfile()
         #handler = self.profile.urlSchemeHandler(ENTRY_SCHEME)
         #if handler is not None:
         #    self.profile.removeUrlSchemeHandler(handler)
+        #self.handler=EntrySchemeHandler()
+        #self.profile.installUrlSchemeHandler(ENTRY_SCHEME,self.handler)
 
-        self.handler=EntrySchemeHandler()
-        self.profile.installUrlSchemeHandler(ENTRY_SCHEME,self.handler)
-        self.page = MyWebPage(self.profile)
+        self.page = MyWebPage()
 
         self.view = QtWebEngineWidgets.QWebEngineView()
         self.view.setPage(self.page)
@@ -146,16 +233,25 @@ top:50px;
         self.search_button.clicked.connect(self.lookup)
         self.page.linkHovered.connect(self.showMessage)
         self.back_btn.clicked.connect(self.history_back)
-        self.next_btn.clicked.connect(self.show_next_dict)
+        self.dict_list_widget.itemClicked.connect(self.switch_dict)
+        self.index_search_btn.clicked.connect(self.search_index)
+        self.index_search_items.itemClicked.connect(self.click_index_search)
         Widgets.QShortcut(QKeySequence(Qt.Key_Return),self.line_edit).activated.connect(self.lookup)
+        Widgets.QShortcut(QKeySequence(Qt.CTRL+Qt.Key_Return),self.index_line_edit).activated.connect(self.search_index)
         Widgets.QShortcut(QKeySequence.ZoomIn,self.view).activated.connect(self.zoomIn)
         Widgets.QShortcut(QKeySequence.ZoomOut,self.view).activated.connect(self.zoomOut)
 
+    def __show_history(self,item):
+        name, data_folder = CurrentState.get_cur_dict_info()
+        result_obj = SocketClient.lookup(item, [name])
+        html = pretty_dict_result(name, result_obj.get(name, "No entry found"))
+        self.page.setHtml(html, get_data_folder_url(data_folder))
 
     def history_back(self):
-        if len(MainWindow.history) >=2:
-            self.lookup(MainWindow.history[-2])
-            MainWindow.history.pop()
+        prev=CurrentState.get_prev_entry()
+        if prev:
+            self.__show_history(prev)
+
 
     def zoomIn(self):
         self.zoom_factor+=.1
@@ -165,29 +261,39 @@ top:50px;
         self.zoom_factor-=.1
         self.page.setZoomFactor(self.zoom_factor)
 
-    def show_next_dict(self):
-        name=MainWindow.dictionaries[MainWindow.dict_index][0]
-        if name not in self.result_obj:
-            MainWindow.dict_index = (MainWindow.dict_index + 1) % len(MainWindow.dictionaries)
-            self.show_next_dict()
-            return
+    def switch_dict(self,cur_item):
+        dict_name=cur_item.text()
+        name,data_folder,value=CurrentState.get_definition(dict_name)
+        CurrentState.reset_history()
+        self.page.setHtml(pretty_dict_result(name,value),get_data_folder_url(data_folder))
+        CurrentState.add_history(CurrentState.word)
 
-        data_folder=MainWindow.dictionaries[MainWindow.dict_index][2]
-        html=pretty_dict_result(name,self.result_obj[name])
-        print(data_folder)
-        self.page.setHtml(html, QUrl.fromLocalFile(data_folder+"/"))
-        MainWindow.dict_index = (MainWindow.dict_index + 1) % len(MainWindow.dictionaries)
+    def click_index_search(self,cur_item):
+        self.line_edit.setText(cur_item.text())
+        self.lookup()
 
-    def lookup(self,word=None):
-        if not word:
-            word=self.line_edit.text().strip()
-        self.result_obj=SocketClient.lookup(word)
-        #baseUrl = QUrl.fromLocalFile("/index.html")
-        #print(baseUrl)
-        #html=join_dict_results(result_obj)
-        MainWindow.dict_index=0
-        MainWindow.history=[word]
-        self.show_next_dict()
+
+    def lookup(self):
+        word=self.line_edit.text().strip()
+        result_obj=SocketClient.lookup(word)
+        CurrentState.reset(word,result_obj)
+        name,data_folder,definition=CurrentState.get_definition()
+        html=pretty_dict_result(name,definition)
+        self.page.setHtml(html,get_data_folder_url(data_folder))
+        CurrentState.add_history(word)
+
+        avl_dicts=CurrentState.get_avl_dicts()
+        self.dict_list_widget.clear()
+        self.dict_list_widget.insertItems(0,avl_dicts)
+
+    def search_index(self):
+        input=self.index_line_edit.text()
+        all_words=CurrentState.get_all_words()
+        results=process.extract(input,all_words,limit=10)
+        #results.sort(key=lambda x: x[1],reverse=True)
+        self.index_search_items.insertItems(0,[item[0] for item in results])
+
+
 
     def showMessage(self,msg):
         self.status_bar.showMessage(str(msg),4000)

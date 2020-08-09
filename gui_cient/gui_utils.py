@@ -1,4 +1,7 @@
+from pathlib import Path
+
 from PyQt5 import QtWebEngineWidgets, QtCore
+from PyQt5.QtCore import QUrl
 from PyQt5.QtGui import QFontDatabase
 from PyQt5.QtWebEngineWidgets import QWebEngineSettings
 
@@ -63,3 +66,6 @@ def join_dict_results(result_obj):
         return header+"<h3>No results found</h3>"
     return header+"\n".join(html_list)
 
+def get_data_folder_url(data_folder):
+    #return QUrl.fromLocalFile(str(Path(data_folder).joinpath("index.html")))
+    return QUrl.fromLocalFile(data_folder+"/index.html")

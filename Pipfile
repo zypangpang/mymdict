@@ -13,6 +13,8 @@ pyqtwebengine = "*"
 fire = "*"
 beautifulsoup4 = "*"
 lxml = "*"
+fuzzywuzzy = "*"
+python-levenshtein = "*"
 
 [requires]
 python_version = "3.8"
