@@ -4,10 +4,10 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
-python-daemon = "*"
 
 [packages]
 python-lzo = "*"
+python-daemon = "*"
 pyqt5 = "*"
 pyqtwebengine = "*"
 fire = "*"
@@ -17,4 +17,4 @@ fuzzywuzzy = "*"
 python-levenshtein = "*"
 
 [requires]
-python_version = "3.8"
+python_version = "3.6"

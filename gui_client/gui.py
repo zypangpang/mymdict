@@ -41,6 +41,8 @@ class CurrentState():
 
     @classmethod
     def get_all_words(cls):
+        if not cls.cur_dict_name:
+            return []
         if not cls.all_words:
             cls.all_words=SocketClient.list_words(cls.cur_dict_name)
         return cls.all_words
@@ -58,6 +60,11 @@ class CurrentState():
         cls.word=word
         cls.result_obj=result_obj
         cls.history=[]
+        avl_dicts=cls.get_avl_dicts()
+        if not avl_dicts:
+            cls.cur_dict_name=None
+        elif cls.cur_dict_name not in avl_dicts:
+            cls.cur_dict_name=avl_dicts[0]
 
     @classmethod
     def reset_history(cls):
@@ -99,8 +106,9 @@ class CurrentState():
 
     @classmethod
     def get_cur_dict_info(cls):
-        return cls.cur_dict_name, cls.dictionaries[cls.cur_dict_name][1]
-
+        if cls.cur_dict_name:
+            return cls.cur_dict_name, cls.dictionaries[cls.cur_dict_name][1]
+        return "",""
 
 
 class MyWebPage(QWebEnginePage):
