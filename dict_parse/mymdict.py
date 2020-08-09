@@ -21,6 +21,7 @@ from struct import pack, unpack
 from io import BytesIO
 import re
 import sys
+import os
 
 from dict_parse.ripemd128 import ripemd128
 from dict_parse.pureSalsa20 import Salsa20
@@ -450,30 +451,16 @@ class MDD(MDict):
 
     def _decode_record_block(self):
         f = open(self._fname, 'rb')
-        f.seek(self._record_block_offset)
-
-        num_record_blocks = self._read_number(f)
-        num_entries = self._read_number(f)
-        assert(num_entries == self._num_entries)
-        record_block_info_size = self._read_number(f)
-        record_block_size = self._read_number(f)
-
-        # record block info section
-        record_block_info_list = []
-        size_counter = 0
-        for i in range(num_record_blocks):
-            compressed_size = self._read_number(f)
-            decompressed_size = self._read_number(f)
-            record_block_info_list += [(compressed_size, decompressed_size)]
-            size_counter += self._number_width * 2
-        assert(size_counter == record_block_info_size)
+        record_block_data_offset = self._record_block_offset + self._number_width * 4 \
+                                   + self._number_width * 2 * len(self._record_block_info_list)
+        f.seek(record_block_data_offset)
 
         # actual record block
         offset = 0
         i = 0
         size_counter = 0
 
-        for compressed_size, decompressed_size in record_block_info_list:
+        for compressed_size, decompressed_size in self._record_block_info_list:
             record_block_compressed = f.read(compressed_size)
             # 4 bytes: compression type
             record_block_type = record_block_compressed[:4]
@@ -504,7 +491,7 @@ class MDD(MDict):
                     break
                 # record end index
                 if i < len(self._key_list)-1:
-                    recorreadmdictd_end = self._key_list[i+1][0]
+                    record_end = self._key_list[i+1][0]
                 else:
                     record_end = len(record_block) + offset
                 i += 1
@@ -512,14 +499,14 @@ class MDD(MDict):
                 yield key_text, data
             offset += len(record_block)
             size_counter += compressed_size
-        assert(size_counter == record_block_size)
+        assert(size_counter == self._record_block_size)
 
         f.close()
 
     def write_to_folder(self,datafolder):
         if not os.path.exists(datafolder):
             os.makedirs(datafolder)
-        for key, value in mdd.items():
+        for key, value in self.items():
             fname = key.decode('utf-8').replace('\\', os.path.sep)
             dfname = datafolder + fname
             if not os.path.exists(os.path.dirname(dfname)):
@@ -622,7 +609,6 @@ class MDX(MDict):
 
 if __name__ == '__main__':
     import sys
-    import os
     import os.path
     import argparse
     import codecs

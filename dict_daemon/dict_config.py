@@ -24,13 +24,13 @@ class DictConfigs():
         self.config=configparser.ConfigParser()
         self.config.read(file_path)
 
-    def set_dicts(self,dict_paths):
-        dict_names=[Path(x).stem for x in dict_paths]
-        self.config[CONFIG_DAEMON_SECTION][self.DICT_FILED]=','.join(dict_paths)
-        self.config[CONFIG_DAEMON_SECTION][self.ENABLED_FILED]=','.join(dict_names)
+    def set_dicts(self,dicts:dict):
+        #dict_names=[Path(x).stem for x in dict_paths]
+        self.config[CONFIG_DAEMON_SECTION][self.DICT_FILED]=','.join(dicts.values())
+        self.config[CONFIG_DAEMON_SECTION][self.ENABLED_FILED]=','.join(dicts.keys())
         with open(self.config_path,"w") as f:
             self.config.write(f)
-        return dict_names
+        return dicts.keys()
 
     def add_dict(self,dict_path):
         dict_name=Path(dict_path).stem

@@ -4,6 +4,9 @@ from dict_daemon.build_index import IndexManipulator
 from dict_daemon import lookup_utils
 from pathlib import Path
 
+class IndexBuildError(Exception):
+    def __init__(self,error_dicts):
+        self.error_dicts=error_dicts
 
 class DictDaemon():
     def __init__(self,config_path=None,load_index=True):
@@ -30,19 +33,30 @@ class DictDaemon():
 
 
     def _load_indexes(self):
-        self.index_obj = IndexManipulator.load_indexes(self.enabled_dicts)
+        self.index_obj={}
+        for name in self.enabled_dicts:
+            self.index_obj[name] = IndexManipulator.load_index(name)
 
-    def _build_indexes(self,rebuild=False,dict_names=None):
+    def _build_indexes(self,dicts=None,rebuild=False,):
         IndexManipulator.index_path_prefix = self.index_prefix
         if not os.path.exists(self.index_prefix):
             logging.info("Index folder not exists. Creating...")
             os.makedirs(self.index_prefix)
 
-        if dict_names:
-            dicts={key: self.dictionaries[key] for key in dict_names}
-        else:
-            dicts=self.dictionaries
-        IndexManipulator.build_indexes(dicts,rebuild)
+        print(self.dictionaries)
+        if not dicts:
+            dicts={key: self.dictionaries[key][0] for key in self.dictionaries}
+
+        error_dicts=[]
+        for name,path in dicts.items():
+            try:
+                IndexManipulator.build_index(name,path,rebuild)
+            except Exception as e:
+                logging.error(f"Build index for {name} failed, error = {e}")
+                error_dicts.append(name)
+        if error_dicts:
+            raise IndexBuildError(error_dicts)
+
 
     def rebuild_index(self,dict_names=None):
         self._build_indexes(rebuild=True,dict_names=dict_names)
@@ -58,7 +72,6 @@ class DictDaemon():
         ans={}
         if not dicts:
             dicts=self.enabled_dicts
-
         for d in dicts:
             try:
                 ans[d]=self._lookup(word,d)
@@ -76,6 +89,22 @@ class DictDaemon():
             return [[name]+self.dictionaries[name] for name in self.enabled_dicts]
         else:
             return [[name]+self.dictionaries[name] for name in self.dictionaries.keys()]
+
+    def extract_mdds(self,mdds:dict):
+        error_dicts=[]
+        for name,path in mdds.items():
+            logging.info(f"Extract mdd {name}...")
+            try:
+                IndexManipulator.extract_mdd(name,path)
+            except Exception as e:
+                logging.error(f"Extract {name}.mdd failed, error = {e}")
+                error_dicts.append(name)
+
+        if error_dicts:
+            raise IndexBuildError(error_dicts)
+
+
+
 
 
 if __name__ == '__main__':

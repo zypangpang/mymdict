@@ -4,6 +4,7 @@ from dict_daemon.handler import MyTCPHandler
 import daemon,fire,constants
 import log_config,logging,configparser
 from pathlib import Path
+from dict_daemon.dict_daemon import IndexBuildError
 
 def signal_handler(sig, frame):
     global server
@@ -98,6 +99,30 @@ class Main():
                 cls.import_dict(dict_folder)
                 logging.info("Import dictionaries success")
 
+    @classmethod
+    def __import_mdx(cls,configs,dict_folder):
+        dicts = {x.stem: str(x.absolute()) for x in dict_folder.iterdir() if x.is_file() and x.suffix == '.mdx'}
+        dict_daemon=DictDaemon(load_index=False)
+        try:
+            dict_daemon._build_indexes(dicts)
+        except IndexBuildError as e:
+            logging.error("Build index failed for some dictionaries")
+            for x in e.error_dicts:
+                dicts.pop(x)
+        configs.set_dicts(dicts)
+        return dicts.keys()
+
+    @classmethod
+    def __import_mdd(cls,configs,dict_folder):
+        index_foler = configs.get_daemon_value("index folder")
+        mdds = {x.stem: str(x.absolute()) for x in dict_folder.iterdir() if x.is_file() and x.suffix == '.mdd'}
+        for dict in mdds.keys():
+            Path(index_foler).joinpath(dict).mkdir(mode=0o0755, exist_ok=True)
+        dict_daemon=DictDaemon(load_index=False)
+        try:
+            dict_daemon.extract_mdds(mdds)
+        except IndexBuildError as e:
+            logging.error(f"Extract some mdds failed: {e.error_dicts}")
 
     @classmethod
     def import_dict(cls,dict_folder,config_path=None):
@@ -109,11 +134,11 @@ class Main():
             config_path=constants.DEFAULT_CONFIG_PATH
         configs=DictConfigs(config_path)
         dict_folder=Path(dict_folder)
-        dicts=[str(x.absolute()) for x in dict_folder.iterdir() if x.is_file() and x.suffix == '.mdx']
-        names=configs.set_dicts(dicts)
-        index_foler=configs.get_daemon_value("index folder")
-        for dict in names:
-            Path(index_foler).joinpath(dict).mkdir(mode=0o0755,exist_ok=True)
+
+        names=cls.__import_mdx(configs,dict_folder)
+        cls.__import_mdd(configs,dict_folder)
+
+        index_foler = configs.get_daemon_value("index folder")
         logging.info(f"Imported {len(names)} dictionaries: {names}")
         logging.info(f"If the dictionary has css or js related, you need to copy them into {index_foler}/<dict_name> manually")
 
