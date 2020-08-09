@@ -13,7 +13,7 @@ CONFIG_DAEMON_SECTION = "dictionary daemon"
 CONFIG_FRONTEND_SECTION= "frontend"
 
 ENCODINGS = ['utf-8', 'gb18030', 'utf-16']
-
+SOUND_PLAYER='mpv'
 class FRONT_END(Enum):
     QTWEBENGINE=1
     CONSOLE=2

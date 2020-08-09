@@ -1,4 +1,6 @@
-import  logging
+import  logging,subprocess
+from constants import SOUND_PLAYER
+from pathlib import Path
 from fuzzywuzzy import process
 import PyQt5.QtWidgets as Widgets
 from PyQt5.QtCore import QUrl, QTextStream, QByteArray, QIODevice,Qt
@@ -114,14 +116,22 @@ class CurrentState():
 class MyWebPage(QWebEnginePage):
     def acceptNavigationRequest(self, url: QUrl, type: QWebEnginePage.NavigationType, isMainFrame: bool, **kwargs):
         if type == QWebEnginePage.NavigationTypeLinkClicked:
-            _, item = url.toString().split(":")
-            item = item.strip("/ ")
-            dict_name,data_folder=CurrentState.get_cur_dict_info()
-            result_obj: dict = SocketClient.lookup(item,[dict_name])
-            raw_html = pretty_dict_result(dict_name,result_obj[dict_name])
-            #print(self.url())
-            self.setHtml(raw_html,self.url())
-            CurrentState.add_history(item)
+            if url.scheme() == 'entry':
+                _, item = url.toString().split(":")
+                item = item.strip("/ ")
+                dict_name,data_folder=CurrentState.get_cur_dict_info()
+                result_obj: dict = SocketClient.lookup(item,[dict_name])
+                raw_html = pretty_dict_result(dict_name,result_obj[dict_name])
+                #print(self.url())
+                self.setHtml(raw_html,self.url())
+                CurrentState.add_history(item)
+            elif url.scheme() == 'sound':
+                item=url.toString().split("://")[1].lower()
+                _, data_folder=CurrentState.get_cur_dict_info()
+                command=[SOUND_PLAYER, str(Path(data_folder).joinpath(item))]
+                #os.system(SOUND_PLAYER+" "+str(Path(data_folder).joinpath(item)))
+                subprocess.Popen(command)
+
             return False
 
         return True

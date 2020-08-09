@@ -142,18 +142,18 @@ class Main():
         logging.info(f"Imported {len(names)} dictionaries: {names}")
         logging.info(f"If the dictionary has css or js related, you need to copy them into {index_foler}/<dict_name> manually")
 
-    @classmethod
-    def add_dict(cls,mdx_path,config_path=None):
-        '''
-        Add dict to config file
-        :param mdx_path: dictionary mdx file path
-        :param config_path: Optional. update settings in custom config_path
-        '''
-        if not config_path:
-            config_path=constants.DEFAULT_CONFIG_PATH
-        configs=DictConfigs(config_path)
-        name=configs.add_dict(mdx_path)
-        logging.info(f"Added dictionary {name}")
+    #@classmethod
+    #def add_dict(cls,mdx_path,config_path=None):
+    #    '''
+    #    Add dict to config file
+    #    :param mdx_path: dictionary mdx file path
+    #    :param config_path: Optional. update settings in custom config_path
+    #    '''
+    #    if not config_path:
+    #        config_path=constants.DEFAULT_CONFIG_PATH
+    #    configs=DictConfigs(config_path)
+    #    name=configs.add_dict(mdx_path)
+    #    logging.info(f"Added dictionary {name}")
 
     @classmethod
     def list_dicts(cls,enabled=True):

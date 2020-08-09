@@ -43,7 +43,6 @@ class DictDaemon():
             logging.info("Index folder not exists. Creating...")
             os.makedirs(self.index_prefix)
 
-        print(self.dictionaries)
         if not dicts:
             dicts={key: self.dictionaries[key][0] for key in self.dictionaries}
 
